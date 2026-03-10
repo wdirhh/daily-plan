@@ -1,0 +1,9 @@
+{
+  "name": "daily-plan",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve . -l 3000",
+    "tunnel": "npx localtunnel --port 3000"
+  }
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a24">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="每日计划">
+  <title>每日计划</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>📋 每日计划</h1>
+      <div class="header-row">
+        <div class="date-picker">
+          <label for="plan-date">计划日期：</label>
+          <input type="date" id="plan-date" />
+        </div>
+        <div class="zoom-controls">
+          <button type="button" id="zoom-out" class="zoom-btn" title="缩小">－</button>
+          <span id="zoom-value" class="zoom-value">100%</span>
+          <button type="button" id="zoom-in" class="zoom-btn" title="放大">＋</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span class="stat-value" id="total-count">0</span>
+        <span class="stat-label">总任务</span>
+      </div>
+      <div class="stat-card completed">
+        <span class="stat-value" id="completed-count">0</span>
+        <span class="stat-label">已完成</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="progress-percent">0%</span>
+        <span class="stat-label">完成率</span>
+      </div>
+    </section>
+
+    <section class="review">
+      <h2 class="review-title">昨日回顾</h2>
+      <div class="review-prev" id="prev-summary">
+        暂无前一天数据
+      </div>
+      <label class="review-label" for="review-input">今日复盘与调整（仅保存在本地）</label>
+      <textarea
+        id="review-input"
+        class="review-input"
+        rows="3"
+        placeholder="根据昨日完成情况，简单记录你的复盘与调整方案，例如：哪些任务没完成？原因是什么？今天要怎么调整计划？"
+      ></textarea>
+      <div class="review-tip">输入内容会自动保存到当前选择的日期。</div>
+    </section>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <section class="add-task">
+      <div class="group-input">
+        <input
+          type="text"
+          id="group-input"
+          placeholder="分组（如：工作、学习...）"
+          maxlength="20"
+          list="group-suggestions"
+        />
+        <datalist id="group-suggestions">
+          <option value="工作"></option>
+          <option value="学习"></option>
+          <option value="生活"></option>
+          <option value="其他"></option>
+        </datalist>
+      </div>
+      <input type="text" id="task-input" placeholder="添加新任务..." maxlength="100" />
+      <button type="button" id="add-btn" class="btn-primary">添加</button>
+    </section>
+
+    <section class="task-list">
+      <ul id="task-list"></ul>
+    </section>
+
+    <footer class="footer">
+      <p>数据保存在浏览器本地，不会丢失</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(function() {});
+    }
+  </script>
+</body>
+</html>
