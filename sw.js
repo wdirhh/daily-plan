@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daily-plan-v1';
+const CACHE_NAME = 'daily-plan-v2';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -17,6 +17,16 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.mode !== 'navigate' && !e.request.url.startsWith(self.location.origin)) return;
+  // 页面请求优先走网络，便于更新后立刻看到新版本
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then((r) => {
+        if (r && r.ok) caches.open(CACHE_NAME).then((c) => c.put(e.request, r.clone()));
+        return r;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then((cached) => cached || fetch(e.request).then((r) => {
       const clone = r.clone();
