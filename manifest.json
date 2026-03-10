@@ -2,7 +2,8 @@
   "name": "每日计划",
   "short_name": "每日计划",
   "description": "每日计划与复盘，支持任务分组与完成统计",
-  "start_url": "./index.html",
+  "start_url": "/daily-plan/",
+  "scope": "/daily-plan/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#1a1a24",
@@ -10,7 +11,7 @@
   "lang": "zh-CN",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "/daily-plan/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
