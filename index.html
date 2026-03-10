@@ -18,13 +18,8 @@
       <h1>📋 每日计划</h1>
       <div class="header-row">
         <div class="date-picker">
-          <label for="plan-date">计划日期：</label>
+          <label for="plan-date">日期：</label>
           <input type="date" id="plan-date" />
-        </div>
-        <div class="zoom-controls">
-          <button type="button" id="zoom-out" class="zoom-btn" title="缩小">－</button>
-          <span id="zoom-value" class="zoom-value">100%</span>
-          <button type="button" id="zoom-in" class="zoom-btn" title="放大">＋</button>
         </div>
       </div>
     </header>
@@ -44,6 +39,31 @@
       </div>
     </section>
 
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <section class="add-task">
+      <div class="add-task-group" id="add-task-group" aria-hidden="true">
+        <span class="add-task-group-label">分组</span>
+        <select id="group-select" class="group-select" title="分组">
+          <option value="">未分组</option>
+          <option value="工作">工作</option>
+          <option value="学习">学习</option>
+          <option value="生活">生活</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="add-task-row">
+        <input type="text" id="task-input" placeholder="添加新任务..." maxlength="100" />
+        <button type="button" id="add-btn" class="btn-primary">添加</button>
+      </div>
+    </section>
+
+    <section class="task-list">
+      <ul id="task-list"></ul>
+    </section>
+
     <section class="review">
       <h2 class="review-title">昨日回顾</h2>
       <div class="review-prev" id="prev-summary">
@@ -57,34 +77,6 @@
         placeholder="根据昨日完成情况，简单记录你的复盘与调整方案，例如：哪些任务没完成？原因是什么？今天要怎么调整计划？"
       ></textarea>
       <div class="review-tip">输入内容会自动保存到当前选择的日期。</div>
-    </section>
-
-    <div class="progress-bar">
-      <div class="progress-fill" id="progress-fill"></div>
-    </div>
-
-    <section class="add-task">
-      <div class="group-input">
-        <input
-          type="text"
-          id="group-input"
-          placeholder="分组（如：工作、学习...）"
-          maxlength="20"
-          list="group-suggestions"
-        />
-        <datalist id="group-suggestions">
-          <option value="工作"></option>
-          <option value="学习"></option>
-          <option value="生活"></option>
-          <option value="其他"></option>
-        </datalist>
-      </div>
-      <input type="text" id="task-input" placeholder="添加新任务..." maxlength="100" />
-      <button type="button" id="add-btn" class="btn-primary">添加</button>
-    </section>
-
-    <section class="task-list">
-      <ul id="task-list"></ul>
     </section>
 
     <footer class="footer">

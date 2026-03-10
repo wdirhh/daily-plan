@@ -1,9 +1,5 @@
 const STORAGE_KEY = 'daily-plan-data';
 const REVIEW_KEY = 'daily-plan-review';
-const ZOOM_STORAGE_KEY = 'daily-plan-zoom';
-const ZOOM_MIN = 0.8;
-const ZOOM_MAX = 1.3;
-const ZOOM_STEP = 0.1;
 
 // 获取今日日期字符串
 function getTodayStr() {
@@ -56,7 +52,8 @@ function setTasksForDate(data, dateStr, tasks) {
 // DOM 元素
 const dateInput = document.getElementById('plan-date');
 const taskInput = document.getElementById('task-input');
-const groupInput = document.getElementById('group-input');
+const groupSelect = document.getElementById('group-select');
+const addTaskGroupEl = document.getElementById('add-task-group');
 const addBtn = document.getElementById('add-btn');
 const taskList = document.getElementById('task-list');
 const totalCount = document.getElementById('total-count');
@@ -65,10 +62,6 @@ const progressPercent = document.getElementById('progress-percent');
 const progressFill = document.getElementById('progress-fill');
 const prevSummary = document.getElementById('prev-summary');
 const reviewInput = document.getElementById('review-input');
-const appEl = document.querySelector('.app');
-const zoomOutBtn = document.getElementById('zoom-out');
-const zoomInBtn = document.getElementById('zoom-in');
-const zoomValueEl = document.getElementById('zoom-value');
 
 function getPrevDateStr(dateStr) {
   if (!dateStr) return '';
@@ -117,11 +110,23 @@ function renderTasks(tasks) {
         <span class="group-count">${done}/${list.length}</span>
       </li>
     `;
+    const groupOptions = [
+      { value: '', label: '未分组' },
+      { value: '工作', label: '工作' },
+      { value: '学习', label: '学习' },
+      { value: '生活', label: '生活' },
+      { value: '其他', label: '其他' }
+    ];
     list.forEach(({ task, index }) => {
+      const currentGroup = (task.group && task.group.trim()) || '';
+      const optionsHtml = groupOptions.map(opt =>
+        `<option value="${escapeHtml(opt.value)}" ${opt.value === currentGroup ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`
+      ).join('');
       html += `
         <li class="task-item ${task.completed ? 'completed' : ''}" data-index="${index}">
           <button type="button" class="task-checkbox" aria-label="切换完成状态"></button>
           <span class="task-text">${escapeHtml(task.text)}</span>
+          <select class="task-group-select" aria-label="修改分组" data-index="${index}">${optionsHtml}</select>
           <button type="button" class="task-delete" aria-label="删除">×</button>
         </li>
       `;
@@ -136,6 +141,9 @@ function renderTasks(tasks) {
   });
   taskList.querySelectorAll('.task-delete').forEach(btn => {
     btn.addEventListener('click', handleDelete);
+  });
+  taskList.querySelectorAll('.task-group-select').forEach(sel => {
+    sel.addEventListener('change', handleGroupChange);
   });
 }
 
@@ -192,7 +200,7 @@ function refreshReview(currentDateStr, data) {
 function addTask() {
   const text = taskInput.value.trim();
   if (!text) return;
-  const group = (groupInput.value || '').trim();
+  const group = (groupSelect ? groupSelect.value : '') || '';
 
   const dateStr = dateInput.value;
   const data = loadData();
@@ -232,6 +240,21 @@ function handleDelete(e) {
   }
 }
 
+// 修改任务分组
+function handleGroupChange(e) {
+  const select = e.target;
+  const index = parseInt(select.dataset.index, 10);
+  const newGroup = (select.value || '').trim();
+  const dateStr = dateInput.value;
+  const data = loadData();
+  const tasks = getTasksForDate(data, dateStr);
+  if (index >= 0 && index < tasks.length) {
+    tasks[index].group = newGroup;
+    saveData(setTasksForDate(data, dateStr, tasks));
+    refreshView();
+  }
+}
+
 // 事件绑定
 addBtn.addEventListener('click', addTask);
 taskInput.addEventListener('keydown', (e) => {
@@ -246,30 +269,21 @@ reviewInput.addEventListener('input', () => {
   saveReviews(reviews);
 });
 
-// 整体缩放
-function getStoredZoom() {
-  const v = parseFloat(localStorage.getItem(ZOOM_STORAGE_KEY), 10);
-  if (Number.isFinite(v) && v >= ZOOM_MIN && v <= ZOOM_MAX) return v;
-  return 1;
+// 添加任务时显示分组选择
+if (addTaskGroupEl && taskInput) {
+  taskInput.addEventListener('focus', () => {
+    addTaskGroupEl.classList.add('is-visible');
+    addTaskGroupEl.setAttribute('aria-hidden', 'false');
+  });
+  taskInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!addTaskGroupEl.contains(document.activeElement)) {
+        addTaskGroupEl.classList.remove('is-visible');
+        addTaskGroupEl.setAttribute('aria-hidden', 'true');
+      }
+    }, 150);
+  });
 }
-
-function applyZoom(scale) {
-  const s = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
-  if (appEl) {
-    appEl.style.transform = `scale(${s})`;
-  }
-  if (zoomValueEl) zoomValueEl.textContent = Math.round(s * 100) + '%';
-  localStorage.setItem(ZOOM_STORAGE_KEY, String(s));
-  return s;
-}
-
-if (zoomOutBtn) {
-  zoomOutBtn.addEventListener('click', () => applyZoom(getStoredZoom() - ZOOM_STEP));
-}
-if (zoomInBtn) {
-  zoomInBtn.addEventListener('click', () => applyZoom(getStoredZoom() + ZOOM_STEP));
-}
-applyZoom(getStoredZoom());
 
 // 初始化
 refreshView();
