@@ -2,7 +2,6 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <base href="/daily-plan/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1a1a24">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -54,15 +53,22 @@
           <option value="生活">生活</option>
           <option value="其他">其他</option>
         </select>
+        <span class="add-task-group-label">优先级</span>
+        <select id="priority-select" class="group-select" title="优先级">
+          <option value="高">高</option>
+          <option value="中" selected>中</option>
+          <option value="低">低</option>
+        </select>
       </div>
       <div class="add-task-row">
         <input type="text" id="task-input" placeholder="添加新任务..." maxlength="100" />
+        <button type="button" id="voice-btn" class="btn-voice" title="语音输入" aria-label="语音输入">🎤</button>
         <button type="button" id="add-btn" class="btn-primary">添加</button>
       </div>
     </section>
 
     <section class="task-list">
-      <ul id="task-list"></ul>
+      <div id="task-list"></div>
     </section>
 
     <section class="review">
