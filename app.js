@@ -96,7 +96,19 @@ function priorityOrder(p) {
   return o[p || '中'] ?? 1;
 }
 
-// 渲染任务列表：未完成 / 已完成分块，按优先级高→低排序，可拖拽排序
+// 未完成任务按分组顺序的索引（与列表展示顺序一致，用于拖拽重排）
+function getPendingIndicesInDisplayOrder(tasks) {
+  const order = [];
+  for (const opt of GROUP_OPTIONS) {
+    const groupValue = opt.value;
+    const indices = tasks.map((t, i) => i).filter(i => !tasks[i].completed && ((tasks[i].group || '').trim() === groupValue));
+    indices.sort((a, b) => priorityOrder(tasks[a].priority) - priorityOrder(tasks[b].priority));
+    order.push(...indices);
+  }
+  return order;
+}
+
+// 渲染任务列表：未完成按分组（工作/学习/生活等）展示，已完成一块；组内按优先级排序，可拖拽排序
 function renderTasks(tasks) {
   if (tasks.length === 0) {
     taskList.innerHTML = `
@@ -108,12 +120,10 @@ function renderTasks(tasks) {
     return;
   }
 
-  const pending = tasks.map((t, i) => ({ task: t, index: i })).filter(x => !x.task.completed);
   const done = tasks.map((t, i) => ({ task: t, index: i })).filter(x => x.task.completed);
-  pending.sort((a, b) => priorityOrder(a.task.priority) - priorityOrder(b.task.priority));
   done.sort((a, b) => priorityOrder(a.task.priority) - priorityOrder(b.task.priority));
 
-  function renderItem({ task, index }, section) {
+  function renderItem({ task, index }, section, groupValue) {
     const currentGroup = (task.group && task.group.trim()) || '';
     const currentPriority = task.priority || '中';
     const groupOpts = GROUP_OPTIONS.map(opt =>
@@ -122,11 +132,15 @@ function renderTasks(tasks) {
     const priorityOpts = PRIORITY_OPTIONS.map(opt =>
       `<option value="${escapeHtml(opt.value)}" ${opt.value === currentPriority ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`
     ).join('');
+    const dataGroup = (section === 'pending' && groupValue !== undefined) ? ` data-group="${escapeHtml(groupValue)}"` : '';
     return `
-      <li class="task-item ${task.completed ? 'completed' : ''}" data-index="${index}" data-section="${section}" draggable="true">
+      <li class="task-item ${task.completed ? 'completed' : ''}" data-index="${index}" data-section="${section}"${dataGroup} draggable="true">
         <span class="task-drag" aria-hidden="true">⋮⋮</span>
         <button type="button" class="task-checkbox" aria-label="切换完成状态"></button>
-        <select class="task-priority-select task-priority-${escapeHtml(currentPriority)}" aria-label="优先级" title="优先级：${escapeHtml(currentPriority)}" data-index="${index}">${priorityOpts}</select>
+        <span class="priority-cell">
+          <span class="priority-dot" data-priority="${escapeHtml(currentPriority)}" aria-hidden="true"></span>
+          <select class="task-priority-select task-priority-${escapeHtml(currentPriority)}" aria-label="修改优先级" title="点击修改优先级（当前：${escapeHtml(currentPriority)}）" data-index="${index}">${priorityOpts}</select>
+        </span>
         <span class="task-text" role="button" tabindex="0" aria-label="点击编辑">${escapeHtml(task.text)}</span>
         <select class="task-group-select" aria-label="修改分组" data-index="${index}">${groupOpts}</select>
         <button type="button" class="task-delete" aria-label="删除">×</button>
@@ -135,9 +149,18 @@ function renderTasks(tasks) {
   }
 
   let html = '';
-  html += '<div class="task-section task-section-pending"><h3 class="task-section-title">未完成</h3><ul class="task-ul">';
-  pending.forEach(x => { html += renderItem(x, 'pending'); });
-  html += '</ul></div>';
+  html += '<div class="task-section task-section-pending"><h3 class="task-section-title">未完成</h3>';
+  for (const opt of GROUP_OPTIONS) {
+    const groupValue = opt.value;
+    const groupLabel = opt.label;
+    const pendingInGroup = tasks.map((t, i) => ({ task: t, index: i })).filter(x => !x.task.completed && ((x.task.group || '').trim() === groupValue));
+    pendingInGroup.sort((a, b) => priorityOrder(a.task.priority) - priorityOrder(b.task.priority));
+    if (pendingInGroup.length === 0) continue;
+    html += `<div class="task-group-block" data-group="${escapeHtml(groupValue)}"><h4 class="task-group-title">${escapeHtml(groupLabel)}</h4><ul class="task-ul">`;
+    pendingInGroup.forEach(x => { html += renderItem(x, 'pending', groupValue); });
+    html += '</ul></div>';
+  }
+  html += '</div>';
   html += '<div class="task-section task-section-done"><h3 class="task-section-title">已完成</h3><ul class="task-ul">';
   done.forEach(x => { html += renderItem(x, 'done'); });
   html += '</ul></div>';
@@ -156,16 +179,28 @@ function renderTasks(tasks) {
   });
   taskList.querySelectorAll('.task-priority-select').forEach(sel => {
     sel.addEventListener('change', handlePriorityChange);
+    sel.addEventListener('change', () => {
+      const dot = sel.closest('.task-item')?.querySelector('.priority-dot');
+      if (dot) dot.setAttribute('data-priority', sel.value || '中');
+    });
   });
   taskList.querySelectorAll('.task-text').forEach(span => {
     span.addEventListener('click', handleTaskTextClick);
     span.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); span.click(); } });
+    // iOS/触摸设备上 click 可能不触发，用 touchend 直接进入编辑
+    span.addEventListener('touchend', (e) => {
+      if (e.changedTouches && e.changedTouches.length && !span.closest('.task-text-input')) {
+        e.preventDefault();
+        handleTaskTextClick({ currentTarget: span });
+      }
+    }, { passive: false });
   });
   taskList.querySelectorAll('.task-item[draggable]').forEach(li => {
     li.addEventListener('dragstart', handleDragStart);
     li.addEventListener('dragover', handleDragOver);
     li.addEventListener('drop', handleDrop);
     li.addEventListener('dragend', handleDragEnd);
+    bindTouchDrag(li);
   });
 }
 
@@ -326,12 +361,12 @@ function handlePriorityChange(e) {
   }
 }
 
-// 同模块内拖拽排序
+// 同模块内拖拽排序（未完成按分组展示顺序）
 function reorderTasksInSection(section, draggedIndex, targetIndex) {
   const dateStr = dateInput.value;
   const data = loadData();
   const tasks = getTasksForDate(data, dateStr);
-  const pendingIndices = tasks.map((t, i) => i).filter(i => !tasks[i].completed);
+  const pendingIndices = getPendingIndicesInDisplayOrder(tasks);
   const doneIndices = tasks.map((t, i) => i).filter(i => tasks[i].completed);
   const indices = section === 'pending' ? pendingIndices : doneIndices;
   const fromPos = indices.indexOf(draggedIndex);
@@ -345,6 +380,68 @@ function reorderTasksInSection(section, draggedIndex, targetIndex) {
 }
 
 let draggedElement = null;
+
+// iOS 不支持 HTML5 拖拽，用 touch 事件实现同块内排序
+function bindTouchDrag(li) {
+  const dragHandle = li.querySelector('.task-drag');
+  if (!dragHandle) return;
+  let startY = 0;
+  let touchActive = false;
+  let lastOver = null;
+
+  function clearOver() {
+    if (lastOver) {
+      lastOver.classList.remove('task-drag-over');
+      lastOver = null;
+    }
+  }
+
+  dragHandle.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchActive = true;
+    startY = e.touches[0].clientY;
+    li.classList.add('task-dragging');
+    clearOver();
+    document.addEventListener('touchmove', onMove, { capture: true, passive: false });
+    document.addEventListener('touchend', onEnd, true);
+    document.addEventListener('touchcancel', onEnd, true);
+  }, { passive: true });
+
+  function onMove(e) {
+    if (!touchActive || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    const x = e.touches[0].clientX;
+    if (Math.abs(y - startY) < 8) return;
+    e.preventDefault();
+    const under = document.elementFromPoint(x, y);
+    const targetLi = under?.closest('.task-item');
+    const sameSection = targetLi && targetLi !== li && targetLi.dataset.section === li.dataset.section;
+    const sameGroupOk = li.dataset.section !== 'pending' || targetLi?.dataset.group === li.dataset.group;
+    if (sameSection && sameGroupOk) {
+      clearOver();
+      targetLi.classList.add('task-drag-over');
+      lastOver = targetLi;
+    } else {
+      clearOver();
+    }
+  }
+
+  function onEnd() {
+    if (!touchActive) return;
+    touchActive = false;
+    li.classList.remove('task-dragging');
+    const target = lastOver;
+    clearOver();
+    document.removeEventListener('touchmove', onMove, { capture: true });
+    document.removeEventListener('touchend', onEnd, true);
+    document.removeEventListener('touchcancel', onEnd, true);
+    if (target && target !== li) {
+      const draggedIndex = parseInt(li.dataset.index, 10);
+      const targetIndex = parseInt(target.dataset.index, 10);
+      reorderTasksInSection(li.dataset.section, draggedIndex, targetIndex);
+    }
+  }
+}
 
 function handleDragStart(e) {
   const li = e.currentTarget;
@@ -361,6 +458,7 @@ function handleDragOver(e) {
   const li = e.currentTarget;
   if (!draggedElement || li === draggedElement) return;
   if (li.dataset.section !== draggedElement.dataset.section) return;
+  if (li.dataset.section === 'pending' && li.dataset.group !== draggedElement.dataset.group) return;
   e.dataTransfer.dropEffect = 'move';
   li.classList.add('task-drag-over');
 }
@@ -371,6 +469,7 @@ function handleDrop(e) {
   target.classList.remove('task-drag-over');
   if (!draggedElement || target === draggedElement) return;
   if (target.dataset.section !== draggedElement.dataset.section) return;
+  if (target.dataset.section === 'pending' && target.dataset.group !== draggedElement.dataset.group) return;
   const draggedIndex = parseInt(draggedElement.dataset.index, 10);
   const targetIndex = parseInt(target.dataset.index, 10);
   reorderTasksInSection(target.dataset.section, draggedIndex, targetIndex);
@@ -385,13 +484,22 @@ function handleDragEnd(e) {
   draggedElement = null;
 }
 
-// 语音输入（使用浏览器语音识别，需 HTTPS 或 localhost）
+// 检测语音输入是否可用（需支持 Web Speech API 且为安全上下文 HTTPS/localhost）
+function isVoiceInputAvailable() {
+  const hasAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const isSecure = window.isSecureContext;
+  return hasAPI && isSecure;
+}
+
+// 语音输入：支持时用 Web Speech API，否则聚焦输入框以唤起系统键盘（系统键盘带麦克风时可语音输入）
 function startVoiceInput() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    taskInput.placeholder = '当前浏览器不支持语音输入，请用 Chrome 或 Edge';
+  if (!isVoiceInputAvailable()) {
+    taskInput.focus();
+    taskInput.placeholder = '已打开输入框，请使用键盘上的麦克风进行语音输入';
+    setTimeout(() => { if (taskInput.placeholder === '已打开输入框，请使用键盘上的麦克风进行语音输入') taskInput.placeholder = '添加新任务...'; }, 4000);
     return;
   }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const recognition = new SpeechRecognition();
   recognition.lang = 'zh-CN';
   recognition.continuous = false;
@@ -429,7 +537,14 @@ function startVoiceInput() {
 
 // 事件绑定
 addBtn.addEventListener('click', addTask);
-if (voiceBtn) voiceBtn.addEventListener('click', startVoiceInput);
+if (voiceBtn) {
+  voiceBtn.addEventListener('click', startVoiceInput);
+  // 不支持 Web Speech 时，按钮用于唤起带语音输入的系统键盘
+  if (!isVoiceInputAvailable()) {
+    voiceBtn.setAttribute('aria-label', '打开输入框，使用键盘上的麦克风进行语音输入');
+    voiceBtn.title = '打开输入框，使用键盘上的麦克风进行语音输入';
+  }
+}
 taskInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addTask();
 });
